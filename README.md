@@ -149,8 +149,11 @@ Instance: N=800  W = sum(w_ij) = -46
    1            94           -70
 ```
 
-(that first line is an actual run) and asserts `H + 2C = Σw` on every check,
-warning on any violation. See the status note above before expecting a full run.
+(that first line is an actual run). It also checks that the two accumulators
+still sum to `W`; note that is only a guard against an accumulate/truncate bug
+in the loop, not a physics check — `same + cut == W` holds for *every* spin
+configuration. Read [RTL simulation](#rtl-simulation-correct-but-very-slow)
+above before expecting a full run.
 
 Runtime knobs are compile-time defines at the top of `sim/tb_top_control.v`
 (`SWEEPS`, `CHECK_EVERY`, `TIMEOUT`) or on the command line with

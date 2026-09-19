@@ -132,10 +132,14 @@ module tb_top_control;
   // Ising energy and MaxCut value of the current spin configuration.
   //
   // With sigma_i * sigma_j = +1 for equal bits and -1 for different bits:
-  //     same = sum_{i<j, equal bits}    w_ij
+  //     same = sum_{i<j, equal bits}     w_ij
   //     cut  = sum_{i<j, differing bits} w_ij   (= MaxCut value C)
-  //     H    = same - cut                       (Ising energy)
-  // hence H + 2*C = W, which is checked below.
+  //     H    = same - cut                        (Ising energy)
+  //
+  // The assertions below are NOT a physics check: same + cut == W holds for
+  // every possible spin configuration, because each pair contributes its w_ij
+  // to exactly one of the two accumulators. They only catch an accumulate /
+  // truncate bug in this loop.
   task calc_energy;
     begin
       same = 0;
@@ -151,9 +155,7 @@ module tb_top_control;
       end
       h = same - cut;
       if (same + cut != W)
-        $display("WARNING: sum(w_ij) identity violated: same=%0d cut=%0d W=%0d", same, cut, W);
-      if (h + 2*cut != W)
-        $display("WARNING: energy identity violated: H=%0d C=%0d W=%0d", h, cut, W);
+        $display("WARNING: accumulator consistency failed: same=%0d cut=%0d W=%0d", same, cut, W);
     end
   endtask
 
