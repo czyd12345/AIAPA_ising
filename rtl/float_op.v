@@ -6,12 +6,12 @@ module float_adder (
 	output	reg	 [15:0] sum
 );
 
-reg sign; // 输出结果的正负标志位
-reg signed [5:0] exponent; //输出数据的指数，因为有正负所以�?�择有符号数
-reg [9:0] mantissa; // 输出数据的尾�?
-reg [4:0] exponentA, exponentB; //输入数据的阶�?
-reg [10:0] fractionA, fractionB, fraction;	// 计算暂存�?
-reg [7:0] shiftAmount; 	// 移位寄存器，为了计算加法时配平阶�?
+reg sign; // sign of the result
+reg signed [5:0] exponent; // signed because the exponent can be negative
+reg [9:0] mantissa; // result mantissa
+reg [4:0] exponentA, exponentB; // operand exponents
+reg [10:0] fractionA, fractionB, fraction;	// {1'b1, mantissa}, with a spare bit for alignment
+reg [7:0] shiftAmount; 	// shift amount used to align the exponents before adding
 reg cout;
 
 always @ (floatA or floatB) 
@@ -23,21 +23,21 @@ begin
 	
 	exponent = exponentA;
 
-	if ((floatA == 16'h0) || (floatA==16'h8000)) 		// 特殊情况A�?0
+	if ((floatA == 16'h0) || (floatA==16'h8000)) 		// special case: A is zero
 	begin						
 		sum = floatB;
 	end 
-	else if ((floatB == 16'h0) || (floatB==16'h8000))  // 特殊情况B�?0
+	else if ((floatB == 16'h0) || (floatB==16'h8000))  // special case: B is zero
 	begin					
 		sum = floatA;
 	end 
-	else if (floatA[14:0] == floatB[14:0] && floatA[15]^floatB[15]==1'b1) //特殊情况互为相反�?
+	else if (floatA[14:0] == floatB[14:0] && floatA[15]^floatB[15]==1'b1) // special case: equal magnitudes, opposite signs -> result is zero
 	begin
 		sum=0;
 	end 
 	else 
 	begin
-		if (exponentB > exponentA)  // 配平阶数使得相加两数在同�?阶数�?
+		if (exponentB > exponentA)  // align the operands so both share the same exponent
 		begin
 			shiftAmount = exponentB - exponentA;
 			fractionA = fractionA >> (shiftAmount);
@@ -49,7 +49,7 @@ begin
 			fractionB = fractionB >> (shiftAmount);
 			exponent = exponentA;
 		end
-		if (floatA[15] == floatB[15]) 	// 两数同号
+		if (floatA[15] == floatB[15]) 	// same sign: magnitudes add
 		begin							
 			{cout,fraction} = fractionA + fractionB;
 			if (cout == 1'b1) 
@@ -60,8 +60,8 @@ begin
 			sign = floatA[15];
 		end 
 		else 
-		begin						//两数异号
-			if (floatA[15] == 1'b1) // A 为负�?
+		begin						// opposite signs: magnitudes subtract
+			if (floatA[15] == 1'b1) // A is negative
 			begin
 				{cout,fraction} = fractionB - fractionA;	// B-A
 			end 
@@ -71,8 +71,8 @@ begin
 			end
 			sign = cout;
 			if (cout == 1'b1) 
-				fraction = -fraction; // 0-负数可求出此数的绝对�?
-			// 对franction进行阶数配平求出尾数
+				fraction = -fraction; // 0 - fraction gives the magnitude
+			// renormalise the fraction to obtain the mantissa
 			if (fraction [10] == 0) begin
 				if (fraction[9] == 1'b1) begin
 					fraction = fraction << 1;
@@ -108,11 +108,11 @@ begin
 			end
 		end
 		mantissa = fraction[9:0];
-		if(exponent[5]==1'b1) begin //太小了输出全0太小�?
+		if(exponent[5]==1'b1) begin // exponent underflow - flush to zero
 			sum = 16'b0000000000000000;
 		end
 		else begin
-			sum = {sign,exponent[4:0],mantissa}; // 组合数据
+			sum = {sign,exponent[4:0],mantissa}; // assemble the result
 		end		
 	end		
 end

@@ -64,9 +64,9 @@ module spu #(
             lf_temp_l[i]=0;
             lf_temp_r[i]=0;
         end
-        $readmemh("F:/SDR/Wi.txt",w_mem);
-        $readmemb("F:/SDR/spinsl.txt",spin_l);
-        $readmemb("F:/SDR/spinsr.txt",spin_r);
+        $readmemh("data/Wi.txt",w_mem);
+        $readmemb("data/spinsl.txt",spin_l);
+        $readmemb("data/spinsr.txt",spin_r);
     end
     reg [15:0] addr_src,addr_lf,addr_sp,psum_lf,fi_lf,fi_sp,result_lf,spinindex,fi_temp_lf;
     reg [6:0] opcode_src,opcode_lf,opcode_sp,num;
@@ -287,7 +287,9 @@ reg finish_r;
 reg [10:0] count;
 assign next_rdout=finish_r?{3'd7,28'b0,spin_l[count]}:(((dout==0)|empty_r)?0:(ctrl_lr_sp?{3'd6,11'b0,dout[16:0],spin_l[addr_sp]}:{3'd6,11'b0,dout[16:1],spin_r[addr_sp],dout[0]}));
 wire [15:0] r;
-fp16_lfsr rand(
+// NOTE: instance renamed from `rand` - that is a SystemVerilog reserved word and
+// cannot be used as an identifier when compiling with `xvlog -sv`.
+fp16_lfsr lfsr_rng(
     .clk(clk),
     .rst(rst),
     .enable(opcode==6'b000001|ctrl_up),
@@ -297,7 +299,7 @@ assign rd_en_j=(opcode_src==6'b000010);
 assign w=(pk<r && opcode_src==6'b000001)?w_mem[addr_src]:0;
 assign ina=(ctrl_up_sp&&opcode_sp==6'b000010)?r:w;
 assign inb=(ctrl_up_sp&&opcode_sp==6'b000010)?t:ck;
-floatMuilt mul(
+float_mul mul(
   .floatA(ina),              // input wire [15 : 0] s_axis_a_tdata
   .floatB(inb),              // input wire [15 : 0] s_axis_b_tdata
   .product(result)    // output wire [15 : 0] m_axis_result_tdata
@@ -340,23 +342,23 @@ module fp16_lfsr (
     output reg [15:0] random_fp16
 );
 
-    // LFSR寄存器
+    // LFSR register
     reg [15:0] lfsr_reg;
     wire lfsr_feedback = lfsr_reg[15] ^ lfsr_reg[13] ^ lfsr_reg[12] ^ lfsr_reg[10];
 
-    // 固定正数 [0,1)
+    // fixed positive fp16 value in [0,1)
     wire sign_bit = 1'b0;
 
-    // mantissa 随机
+    // random mantissa
     wire [9:0] frac_bits = lfsr_reg[9:0];
 
-    // 使用高5位来控制指数（log2 映射，几何分布）
+    // top 5 bits drive the exponent (log2 mapping -> geometric distribution)
     reg [4:0] exp_bits;
     always @(*) begin
         if (lfsr_reg[14:10] == 0)
-            exp_bits = 5'd1;    // 避免全零指数（subnormal），最低设为 1
+            exp_bits = 5'd1;    // avoid an all-zero exponent (subnormal); clamp the low end to 1
         else if (lfsr_reg[14:10] > 5'd14)
-            exp_bits = 5'd14;   // 上限14，对应最大<1的数
+            exp_bits = 5'd14;   // clamp the high end to 14, the largest exponent giving a value < 1
         else
             exp_bits = lfsr_reg[14:10];
     end
@@ -365,13 +367,13 @@ module fp16_lfsr (
 
     always @(posedge clk) begin
         if (rst) begin
-            lfsr_reg     <= 16'hACE1; // 初始种子
+            lfsr_reg     <= 16'hACE1; // initial seed
             random_fp16  <= 16'h0000;
         end else if (enable) begin
-            // 更新 LFSR
+            // advance the LFSR
             lfsr_reg <= {lfsr_reg[14:0], lfsr_feedback};
 
-            // 生成 FP16 随机数
+            // pack the fp16 random value
             random_fp16 <= final_fp16;
         end
     end

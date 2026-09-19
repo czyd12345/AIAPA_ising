@@ -35,7 +35,7 @@ module MuxKeyInternal #(parameter NR_KEY = 2, parameter KEY_LEN = 1,parameter DA
   end
 endmodule
 
-// 不带默认值的选择器模板
+// Multiplexer template without a default value
 module MuxKey #(parameter NR_KEY = 2, parameter KEY_LEN = 1, parameter DATA_LEN = 1) (
   output [DATA_LEN-1:0] out,
   input [KEY_LEN-1:0] key,
@@ -44,7 +44,7 @@ module MuxKey #(parameter NR_KEY = 2, parameter KEY_LEN = 1, parameter DATA_LEN 
   MuxKeyInternal #(NR_KEY, KEY_LEN, DATA_LEN, 0) i0 (out, key, {DATA_LEN{1'b0}}, lut);
 endmodule
 
-// 带默认值的选择器模板
+// Multiplexer template with a default value
 module MuxKeyWithDefault #(parameter NR_KEY = 2, parameter KEY_LEN = 1,parameter DATA_LEN = 1) (
   output [DATA_LEN-1:0] out,
   input [KEY_LEN-1:0] key,

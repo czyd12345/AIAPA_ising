@@ -19,6 +19,10 @@ module uart_transmitter #(
   wire [9:0] tx_shift_next;
   wire tx_shift_ce;
   wire data_in_fire;
+  // Forward declaration: symbol_edge is driven further down but referenced above.
+  // It used to be an implicit 1-bit net, which only compiles in plain
+  // Verilog-2001 mode.
+  wire symbol_edge;
   reg data_in_fire_r=0;
   // MSB to LSB
       REGISTER_CE #(.N(10)) tx_shift (
@@ -61,7 +65,7 @@ end
 
   assign data_in_fire = data_in_valid & data_in_ready;
 
-  wire symbol_edge = (clock_counter_value == SYMBOL_EDGE_TIME - 1);
+  assign symbol_edge = (clock_counter_value == SYMBOL_EDGE_TIME - 1);
   wire done        = (bit_counter_value == 10);
   // 'has_byte' becomes HIGH once we finish sampling all 10 bits
   // ({stop_bit, char[7:0], start_bit}) from the serial interface

@@ -1,0 +1,21 @@
+# Pin the data files to LF and never let git translate their line endings.
+#
+# XSim's $readmemb skips CR as whitespace, so a CRLF checkout does NOT shift the
+# bit packing (measured: an LF and a CRLF copy of a 3200-char row load into a
+# 4096-bit register with bit-for-bit identical contents). The pin is for
+# reproducibility, not correctness: it keeps `sw/gen_config.py --check`'s
+# byte-for-byte comparison stable on every platform, and removes the risk that
+# some other simulator or pre-processing step treats CR differently.
+data/*.txt -text
+
+# Shell scripts and the Makefile must keep LF everywhere: a CR in the shebang
+# line or in a make recipe breaks them.
+*.sh     text eol=lf
+Makefile text eol=lf
+
+# Source and docs: pin to LF so line endings never churn between checkouts.
+*.v      text eol=lf
+*.f      text eol=lf
+*.py     text eol=lf
+*.md     text eol=lf
+*.cff    text eol=lf

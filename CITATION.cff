@@ -1,0 +1,42 @@
+cff-version: 1.2.0
+message: "If you use this reproduction, please cite the paper it reproduces."
+title: "AIAPA_ising: reproduction of a spin scale-aware self-adaptive Ising annealing processing architecture"
+abstract: >-
+  RTL (Verilog) and an algorithm-level reference model (Python) for the AIAPA
+  Ising annealing processor, evaluated on the MaxCut benchmark instance G20.
+type: software
+license: MIT
+repository-code: "https://github.com/czyd12345/AIAPA_ising"
+keywords:
+  - Ising machine
+  - annealing processor
+  - MaxCut
+  - combinatorial optimization
+  - FPGA
+  - RTL
+authors:
+  - alias: czyd12345
+    # Replace with your given/family name if you want to be credited by name.
+preferred-citation:
+  type: article
+  title: "A Spin Scale-Aware Self-Adaptive Ising Annealing Processing Architecture for Combinatorial Optimization Problems"
+  authors:
+    - given-names: Dong
+      family-names: Jiang
+    - given-names: Xiangrui
+      family-names: Wang
+    - given-names: Zhanhong
+      family-names: Huang
+    - given-names: Longyuan
+      family-names: Kang
+    - given-names: Simei
+      family-names: Yang
+    - given-names: Enyi
+      family-names: Yao
+  journal: "IEEE Transactions on Circuits and Systems I: Regular Papers"
+  volume: 72
+  issue: 10
+  start: 5811
+  end: 5824
+  year: 2025
+  doi: "10.1109/TCSI.2025.3541888"
