@@ -239,16 +239,14 @@ behaviour that was validated on hardware.
   sweep costs about `2·N·F` cycles — roughly 1.25M cycles at `T_start = 13`,
   where nearly every spin flips. A full 800-sweep run is therefore ~`10^9`
   cycles, which is why XSim runs are slow. `N_STEPS` on `aiapa_top` is the knob.
-* **Sign convention — unresolved reading.** `sw/ising.py` uses `J_ij = −w_ij`
-  (MaxCut: minimising `H = −½ s'Js` maximises the cut), while `adj_matrix.txt`
-  stores `w_ij` sign-magnitude (`sign = 1` when `w < 0`). Tracing the SPU
-  (`delta_hi = 2·(sigmai_sp ? −fi : +fi)`, accept when `delta_hi < 0`) suggests
-  the hardware minimises `−Σ w σσ`, i.e. the *minimum* cut. Since the design is
-  board-validated and presumably solves MaxCut, that trace is incomplete
-  somewhere — most likely in the incremental local-field update, which flips
-  which spin index the accumulated field belongs to. Left flagged rather than
-  "fixed": the hardware path is unchanged, and `ising.py` now matches the
-  reference formulation.
+* **Sign convention.** The coupling stored in `adj_matrix.txt` is
+  `J_ij = −w_ij`, matching `sw/ising.py`. The SPU accepts a flip when
+  `delta_hi = 2·(σ_i ? −fi : +fi)` is negative, i.e. it minimises
+  `H = −½ s'Js`; with `J = −w` that is `+Σ_{i<j} w_ij σ_iσ_j`, whose minimum is
+  the **maximum** cut. Storing `+w` instead would make the same hardware
+  minimise the cut — if you regenerate the matrix from a graph, the sign is not
+  optional. `sw/gen_config.py` and the testbench both encode this explicitly.
+
 * **Parallel mode is dead.** States `3'd5`/`3'd6` are fully commented out, so
   the type-4 packet and opcode `000011` have no live producer and the writeback
   router's tree routing is inert in the single-SPU configuration.

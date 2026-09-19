@@ -58,8 +58,10 @@ C(s) = Σ_{i<j} w_ij · [s_i ≠ s_j]
 
 ## `adj_matrix.txt` — 4-bit coupling matrix
 
-800 lines × 3200 characters. **Layout verified against all 800 rows and all 9344
-non-zero fields** (every edge of `graph.txt`, in both directions).
+800 lines × 3200 characters. **Layout verified against all 800 rows** — the
+non-zero column positions of each row reproduce that node's neighbour set in
+`graph.txt` exactly (800/800), which pins the packing independently of the sign
+convention. All 9344 directed fields were also checked field by field.
 
 * Line `i` (1-based) holds the couplings of spin `i`.
 * A row is `N` groups of 4 characters. `$readmemb` loads the 3200-character row
@@ -73,8 +75,14 @@ non-zero fields** (every edge of `graph.txt`, in both directions).
   `$readmemb` skips `\r` as whitespace. The files are nonetheless pinned to LF
   in `.gitattributes` so that `gen_config.py --check` stays byte-comparable
   everywhere.
-* Each group is `{sign, |w|:2:0}`, with `sign = 1` when `w < 0`. The file
-  therefore stores the raw graph weight `w_ij` in sign–magnitude form.
+* Each group is `{sign, |J|:2:0}`, holding a coupling in sign–magnitude form.
+  **The stored coupling is `J_ij = −w_ij`, not `w_ij`** — the sign bit is set
+  when the graph weight is *positive*.
+
+  The sign matters: the SPU accumulates `J_ij·σ_j`, so with `J = −w` the energy
+  `H = −½ s'Js = +Σ_{i<j} w_ij σ_iσ_j`, whose minimum is the **maximum** cut
+  (`C = ½Σw − ½Σ w σσ`). Storing `w` instead would make the same hardware
+  minimise the cut. This is the same convention `sw/ising.py` uses.
 
 In bit terms, `rtl/aiapa_top.v` reads the coupling for column `j` from
 `mem_j[i-1][(j-1)*4 +: 4]`, sign at bit `(j-1)*4+3`, and `rtl/spu.v` uses

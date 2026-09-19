@@ -96,7 +96,8 @@ def gen_adj_matrix(n, edges, path):
       * the row is N groups of 4 characters, read right-aligned into a
         4096-bit register; the group at character offset 4k holds column
         j = N - k, i.e. the columns appear in the file in reverse order,
-      * each group is {sign, |w|:2:0} with sign set when w < 0.
+      * each group is {sign, |J|:2:0} where J = -w is the stored coupling, so
+        the sign bit is set when the graph weight w is POSITIVE.
     """
     maxw = max(abs(w) for _, _, w in edges) if edges else 0
     if maxw > 7:
@@ -117,7 +118,12 @@ def gen_adj_matrix(n, edges, path):
         for k in range(n):            # character offset 4k -> column N-k
             j = n - k
             w = rows[i].get(j, 0)
-            parts.append(("1" if w < 0 else "0") + format(abs(w), "03b"))
+            # The SPU accumulates J_ij * sigma_j, so the value stored here must be
+            # J = -w, not w. That sign is what makes the Ising ground state the
+            # MAXIMUM cut: with J = -w, H = -1/2 s'Js = +sum_{i<j} w_ij s_i s_j,
+            # whose minimum maximises C = sum w_ij [s_i != s_j].
+            J = -w
+            parts.append(("1" if J < 0 else "0") + format(abs(J), "03b"))
         out.append("".join(parts))
     with open(path, "w", newline="\n") as fh:
         fh.write("\n".join(out) + "\n")

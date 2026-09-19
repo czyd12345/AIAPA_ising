@@ -184,9 +184,10 @@ and maximising the cut is equivalent to minimising `H = −1/2 · s'Js` for the
 coupling matrix **`J_ij = −w_ij`** — the *negative* of the graph edge weight.
 This is the sign convention `sw/ising.py` uses.
 
-The hardware stores the raw edge weight `w_ij` in `data/adj_matrix.txt`; the
-sign convention is applied inside the SPU datapath. See `data/README.md` and
-`docs/architecture.md`.
+`data/adj_matrix.txt` stores the coupling `J_ij = −w_ij`, the same convention —
+the sign bit is set when the graph weight is positive. The SPU accumulates
+`J_ij·σ_j` and minimises `H = −½ s'Js`, so this is what makes its ground state
+the maximum cut. See `data/README.md` and `docs/architecture.md`.
 
 ---
 

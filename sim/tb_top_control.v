@@ -19,8 +19,10 @@
 //               hardcoded. Both are printed; C is the value to compare against
 //               published MaxCut results for the instance.
 //
-//               mem_j layout: the coupling for column j occupies bits
-//               (j-1)*4 +: 4 as {sign, |w|:2:0}, sign at bit (j-1)*4+3.
+//               mem_j layout: the stored coupling for column j occupies bits
+//               (j-1)*4 +: 4 as {sign, |J|:2:0}, sign at bit (j-1)*4+3, where
+//               J = -w (the MaxCut convention). To report the cut we recover
+//               the graph edge weight w = -J.
 //
 //               Run from the repository root so that the data/*.txt paths in
 //               the RTL resolve. See scripts/run_sim.sh.
@@ -48,8 +50,10 @@ module tb_top_control;
   `endif
   `ifndef TIMEOUT
     // Watchdog, in CLOCK CYCLES. Converted to nanoseconds below using the
-    // testbench's 10 ns clock period.
-    `define TIMEOUT 200000000
+    // testbench's 10 ns clock period. This only guards against a genuine hang:
+    // 100M cycles is 1 s of simulation time, far longer than any short run and
+    // far shorter than the ~10^9 cycles a full 800-sweep anneal needs.
+    `define TIMEOUT 100000000
   `endif
   `ifndef N_STEPS
     // Number of annealing sweeps the DUT runs. The RTL default is 800, but an
@@ -58,6 +62,21 @@ module tb_top_control;
     // simulate a complete but shorter anneal.
     `define N_STEPS 800
   `endif
+  `ifndef T_INIT
+    // Initial temperature as an fp16 literal. 16'h4A80 = 13.0 (the RTL
+    // default); 16'h3400 = 0.25 makes the first sweeps essentially greedy,
+    // which is useful for short directional experiments.
+    `define T_INIT 16'h4A80
+  `endif
+  `ifndef PK_INIT
+    `define PK_INIT 16'h3800      // 0.5
+  `endif
+  `ifndef CK_INIT
+    `define CK_INIT 16'h0000      // 0.0
+  `endif
+  `ifndef ALPHA
+    `define ALPHA 16'h3BFA        // ~0.9969
+  `endif
 
   // Spin count of the bundled instance. Kept separate from `N_STEPS` (the
   // annealing length): this one bounds the edge loops below.
@@ -65,8 +84,11 @@ module tb_top_control;
 
   localparam integer SWEEPS      = `SWEEPS;
   localparam integer CHECK_EVERY = `CHECK_EVERY;
-  localparam integer TIMEOUT     = `TIMEOUT;          // clock cycles
-  localparam integer TIMEOUT_NS  = TIMEOUT * 10;      // 100 MHz -> 10 ns per cycle
+  localparam integer TIMEOUT     = `TIMEOUT;               // clock cycles
+  // 100 MHz -> 10 ns per cycle. The multiply must be done in 64 bits: a 32-bit
+  // `TIMEOUT * 10` overflows above 214,748,364 cycles and the negative result
+  // makes the `#` delay fire at time 0.
+  localparam time    TIMEOUT_NS  = TIMEOUT * 64'd10;
 
   wire serial_out;
   wire finish_send;
@@ -77,7 +99,13 @@ module tb_top_control;
 
   always #5 clk = ~clk;  // 100 MHz
 
-  aiapa_top #(.N_STEPS(`N_STEPS)) dut (
+  aiapa_top #(
+    .N_STEPS (`N_STEPS),
+    .T_INIT  (`T_INIT),
+    .PK_INIT (`PK_INIT),
+    .CK_INIT (`CK_INIT),
+    .ALPHA   (`ALPHA)
+  ) dut (
     .clk        (clk),
     .rst_n      (rst_n),
     .ap_start_n (ap_start_n),
@@ -95,8 +123,9 @@ module tb_top_control;
       for (i = 1; i <= N; i = i + 1)
         for (j = i + 1; j <= N; j = j + 1)
           if (dut.mem_j[i-1][(j-1)*4 +: 4] != 4'b0000)
-            W = W + (dut.mem_j[i-1][(j-1)*4+3] ? -dut.mem_j[i-1][(j-1)*4 +: 3]
-                                              :  dut.mem_j[i-1][(j-1)*4 +: 3]);
+            // stored J = -w, so w = -J; sum those to get W = sum(w_ij)
+            W = W + (dut.mem_j[i-1][(j-1)*4+3] ? dut.mem_j[i-1][(j-1)*4 +: 3]
+                                              : -dut.mem_j[i-1][(j-1)*4 +: 3]);
     end
   endtask
 
@@ -114,7 +143,8 @@ module tb_top_control;
       for (i = 1; i <= N; i = i + 1) begin
         for (j = i + 1; j <= N; j = j + 1) begin
           mag = dut.mem_j[i-1][(j-1)*4 +: 3];
-          w   = dut.mem_j[i-1][(j-1)*4+3] ? -mag : mag;
+          // recover the graph edge weight from the stored coupling J = -w
+          w   = dut.mem_j[i-1][(j-1)*4+3] ? mag : -mag;
           if (dut.spu1.spin_l[i] == dut.spu1.spin_l[j]) same = same + w;
           else                                          cut  = cut  + w;
         end
